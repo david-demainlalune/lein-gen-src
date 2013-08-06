@@ -1,0 +1,1 @@
+(ns lein-gen-src.pipo)
