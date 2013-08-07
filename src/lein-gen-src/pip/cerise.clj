@@ -1,1 +1,0 @@
-(ns lein-gen-src.pip.cerise)
