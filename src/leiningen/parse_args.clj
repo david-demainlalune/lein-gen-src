@@ -52,10 +52,8 @@
 
 (defn ns-from-string
   [string]
-  (let [partial-ns (-> string split-on-dot butlast)]
-    (if (seq partial-ns)
-      (clojure.string/join "." (cons *ns-root* partial-ns))
-      *ns-root*)))
+  (clojure.string/join "."
+                       (cons *ns-root* (split-on-dot string))))
 
 
 (defn parse-args [string]

@@ -31,7 +31,7 @@
     and returns a map with dirpaths and
     fullpaths attributes for src and test"
     (is (= (parse-args "filename")
-           {:the-namespace *ns-root*
+           {:the-namespace (str *ns-root* "." "filename")
             :src {:full-path (vec-to-path ["src" *ns-root* "filename.clj"])
                   :dir-path (vec-to-path ["src" *ns-root*])}
             :test {:full-path (vec-to-path ["test" *ns-root* "filename_test.clj" ])
@@ -40,7 +40,7 @@
 
   (testing "it support hyphenated names"
     (is (= (parse-args "just-filename")
-           {:the-namespace *ns-root*
+           {:the-namespace (str *ns-root* "." "just-filename")
             :src {:full-path (vec-to-path ["src" *ns-root* "just_filename.clj"])
                   :dir-path (vec-to-path ["src" *ns-root*])}
             :test {:full-path (vec-to-path ["test" *ns-root* "just_filename_test.clj" ])
@@ -49,7 +49,7 @@
 
   (testing "it supports partially qualified namespaces"
     (is (= (parse-args "some-sub-ns.just-filename")
-           {:the-namespace (str *ns-root* ".some-sub-ns")
+           {:the-namespace (str *ns-root* ".some-sub-ns.just-filename")
             :src {:full-path (vec-to-path ["src" *ns-root* "some_sub_ns" "just_filename.clj"])
                   :dir-path (vec-to-path ["src" *ns-root* "some_sub_ns"])}
             :test {:full-path (vec-to-path ["test" *ns-root* "some_sub_ns" "just_filename_test.clj" ])
