@@ -17,9 +17,38 @@
   [file]
   (.isDirectory file))
 
-(defn is-file-or-directory?
-  [file]
-  (or (is-directory? file) (is-file? file)))
+(defn is-path-file-or-directory?
+  [path]
+  (let [file (make-file path)]
+    (or (is-directory? file) (is-file? file))))
+
+
+(defn accum-path
+  "takes [foo bar pof] returns [foo foo/bar foo/bar/pof]"
+  [split-path]
+  (loop [result [], source (rest split-path), current-value (first split-path)]
+    (if (seq source)
+      (recur (conj result current-value)
+             (rest source)
+             (str current-value File/separator (first source)))
+      ;else add last element
+      (conj result current-value))))
+
+(defn split-path
+  [path]
+  (clojure.string/split path (re-pattern
+                              (java.util.regex.Pattern/quote File/separator))))
+
+(defn is-part-of-path-an-existing-file?
+  [dir-path]
+  (->> dir-path
+       split-path
+       accum-path
+       (map make-file)
+       (map is-file?)
+       (some true?)))
+
+
 
 (defn make-dirs
   [path-string]
@@ -28,53 +57,67 @@
       .mkdirs))
 
 
+(defn build-validations-vector
+  "takes a path map
+  returns a vec of validation vecs [validator-fn value invalid-message]"
+  [{:keys [src test] :as path-map}]
+  (let [full-path-src (:full-path src)
+        full-path-test (:full-path test)
+        dir-path-src (:dir-path src)
+        dir-path-test (:dir-path test)]
+    [[(complement is-path-file-or-directory?),
+      full-path-src,
+      (format "file %s already exists" full-path-src) ]
+     [(complement is-path-file-or-directory?),
+      full-path-test,
+      (format "file %s already exists" full-path-test)]
+     [(complement is-part-of-path-an-existing-file?),
+      dir-path-src,
+      (format "path %s attempts to overwrite an existing file" dir-path-src)]
+     [(complement is-part-of-path-an-existing-file?),
+      dir-path-test,
+      (format "path %s attempts to overwrite an existing file" dir-path-test)]]))
 
-(defmulti write-src-and-test (fn [{:keys [src test] :as path-map} _ _]
-                               (vector (:file-exists? src) (:file-exists? test))))
+(defn validate
+  [[validator-fn value invalid-message]]
+  (if (validator-fn value)
+    {:valid true
+     :value value}
+    {:valid false
+     :value value
+     :message invalid-message}))
 
 
-(defmethod write-src-and-test
-  [true true]
-  [{:keys [src test] :as path-map} _ _]
-  (format "operation aborted\nboth source and test files already exist\n%s\n%s\n"
-          (:full-path src)
-          (:full-path test)))
+(defn validate-path-map
+  [{:keys [src test] :as path-map}]
+  (->> path-map
+       build-validations-vector
+       (map validate)))
 
-(defmethod write-src-and-test
-  [true false]
-  [{:keys [src test] :as path-map} _ _]
-  (format "operation aborted\nsource file %s already exists\n"
-          (:full-path src)))
-
-(defmethod write-src-and-test
-  [false true]
-  [{:keys [src test] :as path-map} _ _]
-  (format "operation aborted\ntest file %s already exists\n"
-          (:full-path test)))
-
-(defmethod write-src-and-test
-  [false false]
+(defn write-src-and-test
   [{:keys [src test] :as path-map} src-content test-content]
   (do
-    (make-dirs (:dir-path src))
+    (make-dirs (:dir-path src)) ; TODO check return value of make-dirs
     (spit (:full-path src) src-content)
 
     (make-dirs (:dir-path test))
     (spit (:full-path test) test-content)
+
+    ; return value
     (format "succesfully written source and test files\n %s and %s\n"
             (:full-path src) (:full-path test))
   ))
 
-(defn add-file-exists-attr
-  [{:keys [the-namespace src test] :as path-map}]
-  {:the-namespace the-namespace
-   :src (merge src {:file-exists? (is-file-or-directory? (-> src :full-path make-file))})
-   :test (merge test {:file-exists? (is-file-or-directory? (-> test :full-path make-file))})})
+
 
 
 ; public method
 (defn write-files
   [{:keys [src test] :as path-map} src-content test-content]
-  (-> path-map
-      add-file-exists-attr
-      (write-src-and-test src-content test-content)))
+  (let [failed-validations (filter (complement :valid)
+                                   (validate-path-map path-map))]
+    (if (seq failed-validations)
+      (str "operation aborted\n"
+           (clojure.string/join "\n" (map :message failed-validations)))
+      ; else
+      (write-src-and-test path-map src-content test-content))))
