@@ -15,6 +15,7 @@ The plugin is not on clojars. If you want to install it localy, you can follow [
 Once installed the plugin gives access to the "gen-src" task.
 
 running the following command in a project named fun
+    
     $ lein gen-src foo.bar
 
 will generate two files (with minimal ns declarations)
