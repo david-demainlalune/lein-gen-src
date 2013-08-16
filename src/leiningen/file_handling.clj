@@ -26,13 +26,16 @@
 (defn accum-path
   "takes [foo bar pof] returns [foo foo/bar foo/bar/pof]"
   [split-path]
-  (loop [result [], source (rest split-path), current-value (first split-path)]
-    (if (seq source)
-      (recur (conj result current-value)
-             (rest source)
-             (str current-value File/separator (first source)))
-      ;else add last element
-      (conj result current-value))))
+  (if (seq split-path)
+    (loop [result [], source (rest split-path), current-value (first split-path)]
+      (if (seq source)
+        (recur (conj result current-value)
+               (rest source)
+               (str current-value File/separator (first source)))
+        ;else add last element
+        (conj result current-value)))
+    ; else return empty seq
+    (empty split-path)))
 
 (defn split-path
   [path]
